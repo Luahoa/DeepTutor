@@ -84,8 +84,17 @@ class RAGAnythingPipeline:
         from src.services.embedding import get_embedding_client
         from src.services.llm import get_llm_client
 
-        llm_client = get_llm_client()
-        embed_client = get_embedding_client()
+        try:
+            llm_client = get_llm_client()
+            embed_client = get_embedding_client()
+        except ValueError as e:
+            self.logger.error(f"Configuration error: {e}")
+            raise RuntimeError(
+                f"RAG configuration error: {e}. Check .env file for LLM and EMBEDDING settings."
+            ) from e
+        except Exception as e:
+            self.logger.error(f"Failed to initialize AI clients: {e}")
+            raise RuntimeError(f"AI client initialization failed: {e}") from e
 
         def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
             return openai_complete_if_cache(
