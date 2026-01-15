@@ -344,30 +344,15 @@ chunker = TexChunker(model="gpt-4o")
 # Estimate token count
 token_count = chunker.estimate_tokens(tex_content)
 
-# Chunk by section
-chunks = chunker.chunk_by_section(
-    tex_content,
-    max_tokens_per_chunk=4000,
-    overlap_tokens=200
-)
-
-# Chunk by token count
-chunks = chunker.chunk_by_tokens(
-    tex_content,
+# Split content into chunks
+chunks = chunker.split_tex_into_chunks(
+    tex_content=tex_content,
     max_tokens=4000,
-    overlap_tokens=200
+    overlap=200
 )
 
 # Result format
-# [
-#     {
-#         "content": str,        # Chunk content
-#         "tokens": int,         # Token count
-#         "start_line": int,     # Start line number
-#         "end_line": int        # End line number
-#     },
-#     ...
-# ]
+# list[str] - List of chunk strings
 ```
 
 **Dependencies:**
@@ -486,7 +471,7 @@ result = await downloader.download_tex(papers[0]["arxiv_id"])
 
 if result.success:
     chunker = TexChunker()
-    chunks = chunker.chunk_by_section(result.tex_content, max_tokens_per_chunk=4000)
+    chunks = chunker.split_tex_into_chunks(result.tex_content, max_tokens=4000)
 ```
 
 ### Scenario 4: Web Information Retrieval

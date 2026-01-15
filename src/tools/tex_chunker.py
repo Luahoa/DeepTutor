@@ -9,7 +9,7 @@ Features:
 
 Author: DeepTutor Team
 Version: v1.0
-Based on: TODO.md specification
+Based on: TEX_CHUNKER_SPEC.md specification
 """
 
 import os
