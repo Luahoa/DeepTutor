@@ -8,6 +8,8 @@ Unified configuration loading for all DeepTutor modules.
 Provides YAML configuration loading, path resolution, and language parsing.
 """
 
+import copy
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +50,9 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
 
 def load_config_with_main(config_file: str, project_root: Path | None = None) -> dict[str, Any]:
     """
-    Load configuration file, automatically merge with main.yaml common configuration
+    Load configuration file, automatically merge with main.yaml common configuration.
+    This function wraps the cached internal loader and returns a deep copy to ensure
+    mutability safety across different consumers.
 
     Args:
         config_file: Sub-module configuration file name (e.g., "solve_config.yaml")
@@ -60,6 +64,25 @@ def load_config_with_main(config_file: str, project_root: Path | None = None) ->
     if project_root is None:
         project_root = PROJECT_ROOT
 
+    # Call cached loader
+    cached_config = _load_config_internal(config_file, project_root)
+
+    # Return deep copy to prevent side effects
+    return copy.deepcopy(cached_config)
+
+
+@lru_cache(maxsize=32)
+def _load_config_internal(config_file: str, project_root: Path) -> dict[str, Any]:
+    """
+    Internal cached function to load configuration from disk.
+
+    Args:
+        config_file: Sub-module configuration file name
+        project_root: Project root directory
+
+    Returns:
+        Merged configuration dictionary
+    """
     config_dir = project_root / "config"
 
     # 1. Load main.yaml (common configuration)
