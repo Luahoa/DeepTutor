@@ -11,6 +11,13 @@ import json
 import re
 from typing import Any
 
+# Pre-compiled regex patterns
+_TRIPLE_QUOTED_STRING_PATTERN = re.compile(r'"""([\s\S]*?)"""')
+_CODE_BLOCK_PATTERN = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```")
+_JSON_OBJ_PATTERN = re.compile(r"\{[\s\S]*\}")
+_JSON_ARR_PATTERN = re.compile(r"\[[\s\S]*\]")
+_ILLEGAL_CONTROL_CHARS_PATTERN = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
 
 def _escape_triple_quoted_strings(text: str) -> str:
     """
@@ -26,8 +33,7 @@ def _escape_triple_quoted_strings(text: str) -> str:
         # json.dumps safely escapes newlines and quotes
         return json.dumps(content)
 
-    pattern = re.compile(r'"""([\s\S]*?)"""')
-    return pattern.sub(replacer, text)
+    return _TRIPLE_QUOTED_STRING_PATTERN.sub(replacer, text)
 
 
 def extract_json_from_text(text: str) -> dict[str, Any] | list[Any] | None:
@@ -54,8 +60,7 @@ def extract_json_from_text(text: str) -> dict[str, Any] | list[Any] | None:
     text = _escape_triple_quoted_strings(text)
 
     # 1. Try matching Markdown code blocks
-    code_block_pattern = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```")
-    match = code_block_pattern.search(text)
+    match = _CODE_BLOCK_PATTERN.search(text)
 
     if match:
         json_str = match.group(1).strip()
@@ -71,8 +76,7 @@ def extract_json_from_text(text: str) -> dict[str, Any] | list[Any] | None:
         pass
 
     # 3. Try extracting outermost JSON object
-    json_obj_pattern = re.compile(r"\{[\s\S]*\}")
-    match_obj = json_obj_pattern.search(text)
+    match_obj = _JSON_OBJ_PATTERN.search(text)
     if match_obj:
         try:
             return json.loads(match_obj.group(0))
@@ -80,8 +84,7 @@ def extract_json_from_text(text: str) -> dict[str, Any] | list[Any] | None:
             pass
 
     # 4. Try extracting outermost JSON array
-    json_arr_pattern = re.compile(r"\[[\s\S]*\]")
-    match_arr = json_arr_pattern.search(text)
+    match_arr = _JSON_ARR_PATTERN.search(text)
     if match_arr:
         try:
             return json.loads(match_arr.group(0))
@@ -95,4 +98,4 @@ def clean_json_string(json_str: str) -> str:
     """
     Clean JSON string by removing illegal control characters.
     """
-    return re.sub(r"[\x00-\x1f\x7f-\x9f]", "", json_str)
+    return _ILLEGAL_CONTROL_CHARS_PATTERN.sub("", json_str)
