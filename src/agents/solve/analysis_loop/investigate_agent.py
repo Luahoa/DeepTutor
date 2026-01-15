@@ -164,18 +164,26 @@ class InvestigateAgent(BaseAgent):
                 citation_memory=citation_memory,
             )
 
-            executed_actions.append(
-                {
-                    "tool_type": tool_type,
-                    "query": query,
-                    "identifier": identifier,
-                    "cite_id": knowledge_item.cite_id if knowledge_item else None,
-                }
-            )
+            action_record = {
+                "tool_type": tool_type,
+                "query": query,
+                "identifier": identifier,
+                "cite_id": None,
+                "error": None,
+            }
 
             if knowledge_item:
+                action_record["cite_id"] = knowledge_item.cite_id
+                # Check for explicit error in raw_result (if returned by tool wrapper)
+                if knowledge_item.raw_result and knowledge_item.raw_result.startswith("Error:"):
+                    action_record["error"] = knowledge_item.raw_result
+
                 memory.add_knowledge(knowledge_item)
                 knowledge_ids.append(knowledge_item.cite_id)
+            else:
+                action_record["error"] = "Tool execution failed (returned None)"
+
+            executed_actions.append(action_record)
 
         if knowledge_ids and output_dir:
             memory.save()
@@ -382,8 +390,33 @@ class InvestigateAgent(BaseAgent):
                 error=error_msg,
             )
 
-            self.logger.warning(f"Tool call failed ({tool_selection}): {e}")
-            return None
+            self.logger.error(f"Tool call failed ({tool_selection}): {e}")
+
+            # Instead of returning None, return a knowledge item with the error message
+            # This ensures the error is visible in the memory and UI
+
+            try:
+                # Create and register citation for the error
+                cite_id = citation_memory.add_citation(
+                    tool_type=tool_selection,
+                    query=query,
+                    raw_result=f"Error: {error_msg}",
+                    stage="analysis",
+                    metadata={"identifier": identifier, "error": True},
+                )
+                citation_memory.save()
+
+                knowledge_item = KnowledgeItem(
+                    cite_id=cite_id,
+                    tool_type=tool_selection,
+                    query=query,
+                    raw_result=f"Error: {error_msg}",
+                    summary=f"Tool execution failed: {error_msg}",
+                )
+                return knowledge_item
+            except Exception as inner_e:
+                self.logger.error(f"Failed to create error knowledge item: {inner_e}")
+                return None
 
     async def _call_rag_naive(
         self, query: str, kb_name: str, output_dir: str | None
