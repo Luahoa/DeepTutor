@@ -7,6 +7,7 @@ Provides knowledge base initialization, management, querying, and other function
 
 import argparse
 import asyncio
+import os
 from pathlib import Path
 import sys
 
@@ -130,8 +131,15 @@ async def init_knowledge_base(args):
     if args.docs_dir:
         docs_dir = Path(args.docs_dir)
         if docs_dir.exists() and docs_dir.is_dir():
-            for ext in ["*.pdf", "*.docx", "*.doc", "*.txt", "*.md"]:
-                doc_files.extend([str(f) for f in docs_dir.glob(ext)])
+            # Optimize: Single pass directory iteration instead of 5 glob passes
+            extensions = {os.path.normcase(ext) for ext in [".pdf", ".docx", ".doc", ".txt", ".md"]}
+            doc_files.extend(
+                [
+                    str(f)
+                    for f in docs_dir.iterdir()
+                    if f.suffix and os.path.normcase(f.suffix) in extensions
+                ]
+            )
         else:
             print(f"✗ Error: Document directory does not exist: {args.docs_dir}\n")
             return
